@@ -177,7 +177,10 @@ mod tests {
 
     #[test]
     fn severity_serializes_as_lowercase_string() {
-        assert_eq!(serde_json::to_string(&Severity::Error).unwrap(), "\"error\"");
+        assert_eq!(
+            serde_json::to_string(&Severity::Error).unwrap(),
+            "\"error\""
+        );
         assert_eq!(
             serde_json::to_string(&Severity::Warning).unwrap(),
             "\"warning\""
@@ -197,6 +200,9 @@ mod tests {
         assert_eq!(json["results"][0][0], "Registry Files");
         assert_eq!(json["results"][0][1][0]["severity"], "error");
         assert_eq!(json["results"][0][1][0]["message"], "broken");
-        assert_eq!(json["results"][0][1][0]["fix_suggestion"], "run doctor --fix");
+        assert_eq!(
+            json["results"][0][1][0]["fix_suggestion"],
+            "run doctor --fix"
+        );
     }
 }

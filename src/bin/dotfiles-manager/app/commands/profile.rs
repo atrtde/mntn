@@ -87,9 +87,7 @@ fn print_json(ctx: &Dfm) -> Result<()> {
         .iter()
         .map(|name| ProfileJson {
             name: name.to_string(),
-            description: config
-                .get_profile(name)
-                .and_then(|d| d.description.clone()),
+            description: config.get_profile(name).and_then(|d| d.description.clone()),
             active: current.as_deref() == Some(name.as_str()),
         })
         .collect();
