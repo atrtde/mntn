@@ -5,12 +5,34 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 #[command(
     name = "dotfiles-manager",
     version = env!("CARGO_PKG_VERSION"),
-    about = "A Rust-based command-line tool for dotfiles management with profiles."
+    about = "A Rust-based command-line tool for dotfiles management with profiles.",
+    long_about = "A Rust-based command-line tool for dotfiles management with profiles.\n\n\x1b[1m\x1b[4mExamples:\x1b[0m\n  dfm link owner/repo        Clone a dotfiles repo and restore it (onboard a new machine)\n  dfm backup                 Backup the current profile\n  dfm sync -m \"message\"      Stage, commit, and push changes\n  dfm doctor                 Validate registries and check backups for drift"
 )]
 pub struct Cli {
     /// The subcommand to run; `None` when no subcommand was given.
     #[command(subcommand)]
     pub command: Option<Command>,
+
+    /// Suppress non-essential output; only warnings, errors, and final summaries are printed.
+    #[arg(
+        short = 'q',
+        long,
+        global = true,
+        help = "Suppress non-essential output"
+    )]
+    pub quiet: bool,
+
+    /// Print additional diagnostic output (e.g. the resolved dfm root).
+    #[arg(long, global = true, help = "Print additional diagnostic output")]
+    pub verbose: bool,
+
+    /// Disable all interactive prompts; confirmations default to "no" and missing passwords fail instead of prompting.
+    #[arg(
+        long,
+        global = true,
+        help = "Disable all interactive prompts, for CI/automation"
+    )]
+    pub no_input: bool,
 }
 
 /// All top-level subcommands supported by `dfm`.
@@ -66,11 +88,19 @@ pub enum Command {
 
     /// Delete backup directories left behind by profiles that no longer exist.
     #[command(about = "Delete backup directories left behind by profiles that no longer exist")]
-    Prune,
+    Prune(PruneArgs),
 
     /// Open one of dfm's registry/config files in an editor.
     #[command(about = "Open one of dfm's registry/config files in an editor")]
     Edit(EditArgs),
+
+    /// Generate a shell completion script and print it to stdout.
+    #[command(about = "Generate a shell completion script and print it to stdout")]
+    Completions(CompletionsArgs),
+
+    /// Generate the roff man page and print it to stdout.
+    #[command(about = "Generate the roff man page and print it to stdout")]
+    Man,
 }
 
 /// Actions available for managing the encryption password in the system keychain.
@@ -89,12 +119,7 @@ pub enum SecretActions {
 #[derive(Args)]
 pub struct BackupArgs {
     /// Target a specific profile for backup.
-    #[arg(
-        long,
-        short = 'p',
-        visible_short_alias = 'n',
-        help = "Target a specific profile for backup"
-    )]
+    #[arg(long, short = 'p', help = "Target a specific profile for backup")]
     pub profile: Option<String>,
     /// Skip encrypted configs backup (will not prompt for password).
     #[arg(
@@ -108,6 +133,13 @@ pub struct BackupArgs {
         help = "Always prompt for the encryption password instead of using the one stored in the system keychain"
     )]
     pub ask_password: bool,
+    /// Preview what would be backed up without writing anything.
+    #[arg(
+        long,
+        short = 'n',
+        help = "Preview what would be backed up without writing anything"
+    )]
+    pub dry_run: bool,
 }
 
 /// Arguments for the `dfm link` subcommand.
@@ -145,6 +177,13 @@ pub struct RestoreArgs {
         help = "Always prompt for the encryption password instead of using the one stored in the system keychain"
     )]
     pub ask_password: bool,
+    /// Preview what would be restored without writing anything.
+    #[arg(
+        long,
+        short = 'n',
+        help = "Preview what would be restored without writing anything"
+    )]
+    pub dry_run: bool,
 }
 
 /// Arguments for the `dfm doctor` subcommand.
@@ -174,6 +213,29 @@ pub struct DoctorArgs {
         help = "Also check disabled registry entries in the backup consistency check"
     )]
     pub include_disabled: bool,
+    /// Output findings as JSON instead of human-readable text.
+    #[arg(long, help = "Output findings as JSON instead of human-readable text")]
+    pub json: bool,
+}
+
+/// Arguments for the `dfm prune` subcommand.
+#[derive(Args)]
+pub struct PruneArgs {
+    /// List orphaned profile directories without deleting them.
+    #[arg(
+        long,
+        short = 'n',
+        help = "List orphaned profile directories without deleting them"
+    )]
+    pub dry_run: bool,
+}
+
+/// Arguments for the `dfm completions` subcommand.
+#[derive(Args)]
+pub struct CompletionsArgs {
+    /// Shell to generate a completion script for.
+    #[arg(help = "Shell to generate a completion script for")]
+    pub shell: clap_complete::Shell,
 }
 
 /// Arguments for the `dfm edit` subcommand.
@@ -248,6 +310,13 @@ pub struct SyncArgs {
         help = "Custom commit message; defaults to chore: sync dfm (<UTC date time>) when omitted"
     )]
     pub message: Option<String>,
+    /// Preview pending changes without staging, committing, or pushing.
+    #[arg(
+        long,
+        short = 'n',
+        help = "Preview pending changes without staging, committing, or pushing"
+    )]
+    pub dry_run: bool,
 }
 
 /// Arguments for the `dfm use` subcommand.
@@ -264,6 +333,13 @@ pub struct ProfileArgs {
     /// Which profile-management action to perform; `None` lists nothing and falls back to default behavior.
     #[command(subcommand)]
     pub action: Option<ProfileActions>,
+    /// Output the profile list/status as JSON instead of human-readable text.
+    #[arg(
+        long,
+        global = true,
+        help = "Output the profile list/status as JSON instead of human-readable text"
+    )]
+    pub json: bool,
 }
 
 /// Actions available for managing profiles.
@@ -423,13 +499,54 @@ mod tests {
     }
 
     #[test]
-    fn backup_parses_profile_alias() {
-        let cli = Cli::try_parse_from(["dfm", "backup", "-n", "personal"]).unwrap();
+    fn backup_parses_short_profile_flag() {
+        let cli = Cli::try_parse_from(["dfm", "backup", "-p", "personal"]).unwrap();
         match cli.command {
             Some(Command::Backup(args)) => {
                 assert_eq!(args.profile, Some("personal".to_string()));
             }
             _ => panic!("expected Backup command"),
+        }
+    }
+
+    #[test]
+    fn backup_rejects_n_as_profile_shorthand() {
+        // `-n` is reserved for `--dry-run` per clig.dev convention, not an
+        // alias for `--profile`.
+        let result = Cli::try_parse_from(["dfm", "backup", "-n", "personal"]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn backup_parses_short_dry_run_flag() {
+        let cli = Cli::try_parse_from(["dfm", "backup", "-n"]).unwrap();
+        match cli.command {
+            Some(Command::Backup(args)) => assert!(args.dry_run),
+            _ => panic!("expected Backup command"),
+        }
+    }
+
+    #[test]
+    fn restore_parses_dry_run_flag() {
+        let cli = Cli::try_parse_from(["dfm", "restore", "--dry-run"]).unwrap();
+        match cli.command {
+            Some(Command::Restore(args)) => assert!(args.dry_run),
+            _ => panic!("expected Restore command"),
+        }
+    }
+
+    #[test]
+    fn sync_parses_dry_run_flag_and_defaults_false() {
+        let cli = Cli::try_parse_from(["dfm", "sync"]).unwrap();
+        match cli.command {
+            Some(Command::Sync(args)) => assert!(!args.dry_run),
+            _ => panic!("expected Sync command"),
+        }
+
+        let cli = Cli::try_parse_from(["dfm", "sync", "-n"]).unwrap();
+        match cli.command {
+            Some(Command::Sync(args)) => assert!(args.dry_run),
+            _ => panic!("expected Sync command"),
         }
     }
 
@@ -472,6 +589,33 @@ mod tests {
     }
 
     #[test]
+    fn profile_json_flag_defaults_false() {
+        let cli = Cli::try_parse_from(["dfm", "profile"]).unwrap();
+        match cli.command {
+            Some(Command::Profile(args)) => assert!(!args.json),
+            _ => panic!("expected Profile command"),
+        }
+    }
+
+    #[test]
+    fn profile_parses_json_flag() {
+        let cli = Cli::try_parse_from(["dfm", "profile", "--json"]).unwrap();
+        match cli.command {
+            Some(Command::Profile(args)) => assert!(args.json),
+            _ => panic!("expected Profile command"),
+        }
+    }
+
+    #[test]
+    fn doctor_parses_json_flag() {
+        let cli = Cli::try_parse_from(["dfm", "doctor", "--json"]).unwrap();
+        match cli.command {
+            Some(Command::Doctor(args)) => assert!(args.json),
+            _ => panic!("expected Doctor command"),
+        }
+    }
+
+    #[test]
     fn secret_set_and_delete_parse() {
         let cli = Cli::try_parse_from(["dfm", "secret", "set"]).unwrap();
         match cli.command {
@@ -489,7 +633,19 @@ mod tests {
     #[test]
     fn prune_parses_with_no_args() {
         let cli = Cli::try_parse_from(["dfm", "prune"]).unwrap();
-        assert!(matches!(cli.command, Some(Command::Prune)));
+        match cli.command {
+            Some(Command::Prune(args)) => assert!(!args.dry_run),
+            _ => panic!("expected Prune command"),
+        }
+    }
+
+    #[test]
+    fn prune_parses_dry_run_flag() {
+        let cli = Cli::try_parse_from(["dfm", "prune", "--dry-run"]).unwrap();
+        match cli.command {
+            Some(Command::Prune(args)) => assert!(args.dry_run),
+            _ => panic!("expected Prune command"),
+        }
     }
 
     #[test]
@@ -573,5 +729,59 @@ mod tests {
     fn unknown_subcommand_is_err() {
         let result = Cli::try_parse_from(["dfm", "not-a-command"]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn quiet_and_verbose_default_false() {
+        let cli = Cli::try_parse_from(["dfm", "prune"]).unwrap();
+        assert!(!cli.quiet);
+        assert!(!cli.verbose);
+    }
+
+    #[test]
+    fn parses_short_quiet_flag() {
+        let cli = Cli::try_parse_from(["dfm", "-q", "prune"]).unwrap();
+        assert!(cli.quiet);
+    }
+
+    #[test]
+    fn parses_long_verbose_flag_after_subcommand() {
+        let cli = Cli::try_parse_from(["dfm", "prune", "--verbose"]).unwrap();
+        assert!(cli.verbose);
+    }
+
+    #[test]
+    fn no_input_defaults_false_and_parses_after_subcommand() {
+        let cli = Cli::try_parse_from(["dfm", "restore"]).unwrap();
+        assert!(!cli.no_input);
+
+        let cli = Cli::try_parse_from(["dfm", "restore", "--no-input"]).unwrap();
+        assert!(cli.no_input);
+    }
+
+    #[test]
+    fn completions_requires_a_shell_argument() {
+        let result = Cli::try_parse_from(["dfm", "completions"]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn completions_parses_known_shells() {
+        for shell in ["bash", "zsh", "fish", "elvish", "powershell"] {
+            let cli = Cli::try_parse_from(["dfm", "completions", shell]).unwrap();
+            assert!(matches!(cli.command, Some(Command::Completions(_))));
+        }
+    }
+
+    #[test]
+    fn completions_rejects_unknown_shell() {
+        let result = Cli::try_parse_from(["dfm", "completions", "not-a-shell"]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn man_parses_with_no_args() {
+        let cli = Cli::try_parse_from(["dfm", "man"]).unwrap();
+        assert!(matches!(cli.command, Some(Command::Man)));
     }
 }

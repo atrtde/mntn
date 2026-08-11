@@ -5,19 +5,36 @@ pub(crate) mod commands;
 pub(crate) mod output;
 pub(crate) mod prompt;
 
-use anstream::println;
 use clap::{CommandFactory, Parser};
 use color_eyre::eyre::Result;
 use dotfiles_manager::Dfm;
 
 use self::cli::{Cli, Command};
+use self::output::Verbosity;
 
 /// Parse CLI args and dispatch to the matching command handler.
 pub fn run() -> Result<()> {
     color_eyre::install()?;
 
+    // Legacy Windows consoles don't interpret ANSI escape codes unless
+    // virtual terminal processing is explicitly enabled; `colored` won't
+    // turn this on by itself.
+    #[cfg(windows)]
+    let _ = colored::control::set_virtual_terminal(true);
+
     let cli = Cli::parse();
+
+    output::set_verbosity(match (cli.quiet, cli.verbose) {
+        (true, _) => Verbosity::Quiet,
+        (false, true) => Verbosity::Verbose,
+        (false, false) => Verbosity::Normal,
+    });
+    prompt::set_no_input(cli.no_input);
+
     let ctx = Dfm::new()?;
+    if output::is_verbose() {
+        eprintln!("dfm root: {}", ctx.root().display());
+    }
 
     match cli.command {
         Some(Command::Link(args)) => commands::link::run(&ctx, args),
@@ -31,8 +48,10 @@ pub fn run() -> Result<()> {
         Some(Command::Sync(args)) => commands::sync::run(&ctx, args),
         Some(Command::Doctor(args)) => commands::doctor::run(&ctx, args),
         Some(Command::Secret { action }) => commands::secret::run(action),
-        Some(Command::Prune) => commands::prune::run(&ctx),
+        Some(Command::Prune(args)) => commands::prune::run(&ctx, args),
         Some(Command::Edit(args)) => commands::edit::run(&ctx, args),
+        Some(Command::Completions(args)) => commands::completions::run(args.shell),
+        Some(Command::Man) => commands::man::run(),
         None => {
             Cli::command().print_help()?;
             println!();

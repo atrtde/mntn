@@ -1,5 +1,8 @@
+use serde::Serialize;
+
 /// Severity of a validation finding.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "lowercase")]
 pub enum Severity {
     /// A finding that fails the overall validation run.
     Error,
@@ -10,7 +13,7 @@ pub enum Severity {
 }
 
 /// A single finding produced by a validator.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize)]
 pub struct ValidationError {
     /// How severe this finding is.
     pub severity: Severity,
@@ -56,7 +59,7 @@ impl ValidationError {
 }
 
 /// Findings of a full validation run, grouped by validator.
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Clone, Default, Serialize)]
 pub struct DoctorReport {
     /// Findings recorded by each validator, in the order they ran.
     results: Vec<(String, Vec<ValidationError>)>,
@@ -170,5 +173,36 @@ mod tests {
         assert!(report.results().is_empty());
         assert_eq!(report.error_count(), 0);
         assert_eq!(report.warning_count(), 0);
+    }
+
+    #[test]
+    fn severity_serializes_as_lowercase_string() {
+        assert_eq!(
+            serde_json::to_string(&Severity::Error).unwrap(),
+            "\"error\""
+        );
+        assert_eq!(
+            serde_json::to_string(&Severity::Warning).unwrap(),
+            "\"warning\""
+        );
+        assert_eq!(serde_json::to_string(&Severity::Info).unwrap(), "\"info\"");
+    }
+
+    #[test]
+    fn doctor_report_serializes_to_json() {
+        let mut report = DoctorReport::default();
+        report.add_result(
+            "Registry Files",
+            vec![ValidationError::error("broken").with_fix("run doctor --fix")],
+        );
+
+        let json: serde_json::Value = serde_json::to_value(&report).unwrap();
+        assert_eq!(json["results"][0][0], "Registry Files");
+        assert_eq!(json["results"][0][1][0]["severity"], "error");
+        assert_eq!(json["results"][0][1][0]["message"], "broken");
+        assert_eq!(
+            json["results"][0][1][0]["fix_suggestion"],
+            "run doctor --fix"
+        );
     }
 }

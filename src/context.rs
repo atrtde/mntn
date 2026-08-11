@@ -30,9 +30,20 @@ pub struct Dfm {
     root: PathBuf,
 }
 
+/// Environment variable that, when set to a non-empty value, overrides the
+/// default `~/.dfm` root.
+pub const DFM_ROOT_ENV_VAR: &str = "DFM_ROOT";
+
 impl Dfm {
-    /// Open the default root at `~/.dfm`.
+    /// Open the default root at `~/.dfm`, or at `$DFM_ROOT` when that
+    /// environment variable is set to a non-empty value.
     pub fn new() -> Result<Self> {
+        if let Ok(root) = std::env::var(DFM_ROOT_ENV_VAR)
+            && !root.is_empty()
+        {
+            return Ok(Self { root: root.into() });
+        }
+
         let home_dir = dirs::home_dir().ok_or(Error::NoHomeDir)?;
         Ok(Self {
             root: home_dir.join(".dfm"),
@@ -216,6 +227,38 @@ mod tests {
         assert_eq!(
             fake_dfm().active_profile_path(),
             PathBuf::from("/tmp/fake-dfm-root/.active-profile")
+        );
+    }
+
+    // Runs both cases in one test since `DFM_ROOT_ENV_VAR` is process-wide
+    // state; splitting them risks flakiness under parallel test execution.
+    #[test]
+    fn new_honors_dfm_root_env_var_and_falls_back_to_home_when_unset() {
+        // SAFETY: no other test reads or writes `DFM_ROOT_ENV_VAR`.
+        unsafe {
+            std::env::set_var(DFM_ROOT_ENV_VAR, "/tmp/dfm-root-from-env");
+        }
+        assert_eq!(
+            Dfm::new().unwrap().root(),
+            Path::new("/tmp/dfm-root-from-env")
+        );
+
+        // SAFETY: see above.
+        unsafe {
+            std::env::set_var(DFM_ROOT_ENV_VAR, "");
+        }
+        assert_eq!(
+            Dfm::new().unwrap().root(),
+            dirs::home_dir().unwrap().join(".dfm")
+        );
+
+        // SAFETY: see above.
+        unsafe {
+            std::env::remove_var(DFM_ROOT_ENV_VAR);
+        }
+        assert_eq!(
+            Dfm::new().unwrap().root(),
+            dirs::home_dir().unwrap().join(".dfm")
         );
     }
 }

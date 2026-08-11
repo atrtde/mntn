@@ -1,4 +1,3 @@
-use anstream::println;
 use color_eyre::eyre::{Result, WrapErr};
 
 use super::with_suggestions;

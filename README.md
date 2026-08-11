@@ -58,8 +58,37 @@ dfm use work
 | `secret`  | Store or remove the encryption passphrase in the OS keychain              |
 | `prune`   | Delete backup directories left behind by profiles that no longer exist    |
 | `edit`    | Open a registry/config file (`config`, `package`, `encrypted`, `profiles`) in an editor |
+| `completions` | Print a shell completion script (`bash`, `zsh`, `fish`, `elvish`, `powershell`) |
+| `man`     | Print the roff man page                                                   |
 
 **Encrypted configs:** run `dfm secret set` once you know your passphrase to persist it. Pass `--ask-password` to `backup`, `restore`, or `doctor` to type the passphrase for that run instead (bypassing the keychain) — encrypted files are still processed either way.
+
+**Preview before you commit to it:** `backup`, `restore`, and `sync` accept `--dry-run`/`-n` to show what would happen without writing anything; `prune` accepts the same flag to list orphaned directories without deleting them.
+
+**Scripting output:** `doctor` and `profile` accept `--json` for structured output instead of colored text.
+
+## Global Flags
+
+These apply to every subcommand, before or after it:
+
+| Flag           | What it does                                                             |
+| -------------- | ------------------------------------------------------------------------- |
+| `-q, --quiet`  | Suppress non-essential output; warnings, errors, and final summaries still print |
+| `--verbose`    | Print additional diagnostic output (e.g. the resolved dfm root)           |
+| `--no-input`   | Disable all interactive prompts, for CI/automation. Confirmations default to "no"; a password prompt that can't be satisfied from the keychain fails instead of hanging |
+
+`restore` and `profile delete` ask for confirmation before proceeding (like `prune` already did), since both are destructive — pass `--no-input` to decline automatically instead of blocking on a TTY that doesn't exist.
+
+## Environment Variables
+
+| Variable   | What it does                                                              |
+| ---------- | --------------------------------------------------------------------------- |
+| `DFM_ROOT` | Overrides the data directory dfm uses instead of the default `~/.dfm`      |
+| `NO_COLOR` | Disables colored output, per the [NO_COLOR](https://no-color.org/) convention |
+
+## Security
+
+The encryption passphrase is never accepted as a command-line flag or an environment variable — both leak into shell history and process listings. `dfm` only ever gets it two ways: an interactive prompt (hidden, no echo), or the OS keychain via `dfm secret set`. This also means `dfm` can't be driven end-to-end non-interactively unless the passphrase is stored in the keychain first (or `--skip-encrypted` is passed); see `--no-input` below for how it fails when neither applies.
 
 ## Directory Layout
 

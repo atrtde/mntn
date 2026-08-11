@@ -17,6 +17,20 @@ pub struct SyncReport {
     pub committed: Option<String>,
 }
 
+/// List the working-tree changes (`git status --porcelain` lines) that
+/// `run` would stage and commit, without touching the repository.
+pub fn preview(ctx: &Dfm) -> Result<Vec<String>> {
+    git::ensure_git_repo(ctx)?;
+    let repo_dir = ctx.root();
+
+    let status = run_cmd("git", &["status", "--porcelain"], Some(repo_dir))?;
+    Ok(status
+        .lines()
+        .filter(|line| !line.is_empty())
+        .map(str::to_string)
+        .collect())
+}
+
 /// Stage everything, commit when there are changes, and push. Git's push
 /// output streams directly to the terminal.
 pub fn run(ctx: &Dfm, message: Option<&str>) -> Result<SyncReport> {
@@ -135,6 +149,33 @@ mod tests {
         let ctx = Dfm::with_root(dir.path());
 
         assert!(run(&ctx, None).is_err());
+    }
+
+    #[test]
+    fn preview_fails_when_root_is_not_a_git_repo() {
+        let dir = tempfile::tempdir().unwrap();
+        let ctx = Dfm::with_root(dir.path());
+
+        assert!(preview(&ctx).is_err());
+    }
+
+    #[test]
+    fn preview_is_empty_when_nothing_changed() {
+        let (_repo_dir, _remote_dir, ctx) = init_repo_with_commit_and_remote();
+
+        assert!(preview(&ctx).unwrap().is_empty());
+    }
+
+    #[test]
+    fn preview_lists_pending_changes_without_touching_the_repo() {
+        let (repo_dir, _remote_dir, ctx) = init_repo_with_commit_and_remote();
+        std::fs::write(repo_dir.path().join("new.txt"), "hello\n").unwrap();
+
+        let changes = preview(&ctx).unwrap();
+
+        assert_eq!(changes, vec!["?? new.txt".to_string()]);
+        // Nothing was staged or committed.
+        assert!(!has_staged_changes(repo_dir.path()).unwrap());
     }
 
     #[test]
