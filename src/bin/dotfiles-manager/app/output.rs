@@ -1,7 +1,6 @@
 use std::sync::OnceLock;
 
-use anstream::{eprintln, println};
-use anstyle::{AnsiColor, Style};
+use colored::Colorize;
 use dotfiles_manager::doctor::{DoctorReport, FixedFile, Severity};
 use dotfiles_manager::{RegistryEntryStatus, SectionReport};
 
@@ -39,33 +38,22 @@ pub fn is_verbose() -> bool {
     verbosity() == Verbosity::Verbose
 }
 
-/// Style used to render success/positive output in green.
-const GREEN: Style = AnsiColor::Green.on_default();
-/// Style used to render warning output in yellow.
-const YELLOW: Style = AnsiColor::Yellow.on_default();
-/// Style used to render error output in red.
-const RED: Style = AnsiColor::Red.on_default();
-
-/// Wrap `text` in the given style, resetting after it. Rendered through
-/// `anstream`, so the escape codes degrade gracefully on non-color
-/// terminals, `NO_COLOR`, and legacy Windows consoles.
-fn color(text: &str, style: Style) -> String {
-    format!("{style}{text}{style:#}")
-}
-
-/// Wrap `text` in green (success).
+/// Wrap `text` in green (success). Colorization is decided by `colored`,
+/// which checks `NO_COLOR`/`CLICOLOR`/`CLICOLOR_FORCE` and whether stdout
+/// is a terminal, so this degrades to plain text automatically when piped
+/// or when the user opts out.
 pub fn green(text: &str) -> String {
-    color(text, GREEN)
+    text.green().to_string()
 }
 
 /// Wrap `text` in yellow (warning).
 pub fn yellow(text: &str) -> String {
-    color(text, YELLOW)
+    text.yellow().to_string()
 }
 
 /// Wrap `text` in red (error).
 pub fn red(text: &str) -> String {
-    color(text, RED)
+    text.red().to_string()
 }
 
 /// Print a backup/restore section: warnings first, then one line per entry.
@@ -174,43 +162,47 @@ pub fn print_fix_report(files: &[FixedFile]) {
 }
 
 // `print_section`, `print_doctor_report`, and `print_fix_report` write
-// directly to stdout/stderr via `anstream`'s `println!`/`eprintln!`, so
-// meaningfully asserting on their output would require capturing those
-// streams, which isn't worth the effort here. Only the pure color helpers
-// below are tested.
+// directly to stdout/stderr, so meaningfully asserting on their output
+// would require capturing those streams, which isn't worth the effort
+// here. Only the pure color helpers below are tested.
 #[cfg(test)]
 mod tests {
     use super::*;
 
+    /// `colored` decides at Display-time whether to emit ANSI codes, based
+    /// on `NO_COLOR`/tty detection; under `cargo test` stdout isn't a tty,
+    /// so force colorization on to actually exercise the wrapping.
+    fn force_color() {
+        colored::control::set_override(true);
+    }
+
     #[test]
     fn green_contains_original_text() {
+        force_color();
         assert!(green("hello").contains("hello"));
     }
 
     #[test]
     fn yellow_contains_original_text() {
+        force_color();
         assert!(yellow("warning").contains("warning"));
     }
 
     #[test]
     fn red_contains_original_text() {
+        force_color();
         assert!(red("error").contains("error"));
     }
 
     #[test]
-    fn color_contains_original_text() {
-        assert!(color("some text", GREEN).contains("some text"));
-    }
-
-    #[test]
-    fn color_wraps_text_with_style_and_reset() {
-        let styled = color("x", RED);
-        let expected = format!("{RED}x{RED:#}");
-        assert_eq!(styled, expected);
+    fn green_emits_ansi_codes_when_colorization_is_forced() {
+        force_color();
+        assert_ne!(green("hello"), "hello");
     }
 
     #[test]
     fn different_colors_produce_different_output_for_same_text() {
+        force_color();
         assert_ne!(green("same"), yellow("same"));
         assert_ne!(yellow("same"), red("same"));
         assert_ne!(green("same"), red("same"));

@@ -2,7 +2,6 @@ use std::io::{self, Write};
 use std::sync::OnceLock;
 
 use age::secrecy::SecretString;
-use anstream::eprintln;
 use color_eyre::eyre::{Result, WrapErr, bail};
 
 static NO_INPUT: OnceLock<bool> = OnceLock::new();

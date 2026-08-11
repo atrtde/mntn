@@ -5,7 +5,6 @@ pub(crate) mod commands;
 pub(crate) mod output;
 pub(crate) mod prompt;
 
-use anstream::{eprintln, println};
 use clap::{CommandFactory, Parser};
 use color_eyre::eyre::Result;
 use dotfiles_manager::Dfm;
@@ -16,6 +15,12 @@ use self::output::Verbosity;
 /// Parse CLI args and dispatch to the matching command handler.
 pub fn run() -> Result<()> {
     color_eyre::install()?;
+
+    // Legacy Windows consoles don't interpret ANSI escape codes unless
+    // virtual terminal processing is explicitly enabled; `colored` won't
+    // turn this on by itself.
+    #[cfg(windows)]
+    let _ = colored::control::set_virtual_terminal(true);
 
     let cli = Cli::parse();
 
