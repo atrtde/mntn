@@ -43,7 +43,7 @@ pub fn run() -> Result<()> {
         Some(Command::Sync(args)) => commands::sync::run(&ctx, args),
         Some(Command::Doctor(args)) => commands::doctor::run(&ctx, args),
         Some(Command::Secret { action }) => commands::secret::run(action),
-        Some(Command::Prune) => commands::prune::run(&ctx),
+        Some(Command::Prune(args)) => commands::prune::run(&ctx, args),
         Some(Command::Edit(args)) => commands::edit::run(&ctx, args),
         None => {
             Cli::command().print_help()?;

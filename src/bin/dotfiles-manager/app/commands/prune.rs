@@ -3,11 +3,12 @@ use color_eyre::eyre::{Result, WrapErr};
 use dotfiles_manager::Dfm;
 use dotfiles_manager::profiles;
 
+use crate::app::cli::PruneArgs;
 use crate::app::output::{green, is_quiet};
 use crate::app::prompt;
 
 /// Handle `dfm prune`.
-pub fn run(ctx: &Dfm) -> Result<()> {
+pub fn run(ctx: &Dfm, args: PruneArgs) -> Result<()> {
     let orphans = profiles::find_orphaned_profiles(ctx).wrap_err("Scan profile directories")?;
 
     if orphans.is_empty() {
@@ -32,6 +33,11 @@ pub fn run(ctx: &Dfm) -> Result<()> {
         println!(
             "These backup directories have no matching profile in profiles.json and will be permanently deleted."
         );
+    }
+
+    if args.dry_run {
+        println!("Dry run: nothing was deleted");
+        return Ok(());
     }
 
     let confirmed = prompt::confirm(&format!(

@@ -87,7 +87,7 @@ pub enum Command {
 
     /// Delete backup directories left behind by profiles that no longer exist.
     #[command(about = "Delete backup directories left behind by profiles that no longer exist")]
-    Prune,
+    Prune(PruneArgs),
 
     /// Open one of dfm's registry/config files in an editor.
     #[command(about = "Open one of dfm's registry/config files in an editor")]
@@ -124,6 +124,13 @@ pub struct BackupArgs {
         help = "Always prompt for the encryption password instead of using the one stored in the system keychain"
     )]
     pub ask_password: bool,
+    /// Preview what would be backed up without writing anything.
+    #[arg(
+        long,
+        short = 'n',
+        help = "Preview what would be backed up without writing anything"
+    )]
+    pub dry_run: bool,
 }
 
 /// Arguments for the `dfm link` subcommand.
@@ -161,6 +168,13 @@ pub struct RestoreArgs {
         help = "Always prompt for the encryption password instead of using the one stored in the system keychain"
     )]
     pub ask_password: bool,
+    /// Preview what would be restored without writing anything.
+    #[arg(
+        long,
+        short = 'n',
+        help = "Preview what would be restored without writing anything"
+    )]
+    pub dry_run: bool,
 }
 
 /// Arguments for the `dfm doctor` subcommand.
@@ -193,6 +207,18 @@ pub struct DoctorArgs {
     /// Output findings as JSON instead of human-readable text.
     #[arg(long, help = "Output findings as JSON instead of human-readable text")]
     pub json: bool,
+}
+
+/// Arguments for the `dfm prune` subcommand.
+#[derive(Args)]
+pub struct PruneArgs {
+    /// List orphaned profile directories without deleting them.
+    #[arg(
+        long,
+        short = 'n',
+        help = "List orphaned profile directories without deleting them"
+    )]
+    pub dry_run: bool,
 }
 
 /// Arguments for the `dfm edit` subcommand.
@@ -267,6 +293,13 @@ pub struct SyncArgs {
         help = "Custom commit message; defaults to chore: sync dfm (<UTC date time>) when omitted"
     )]
     pub message: Option<String>,
+    /// Preview pending changes without staging, committing, or pushing.
+    #[arg(
+        long,
+        short = 'n',
+        help = "Preview pending changes without staging, committing, or pushing"
+    )]
+    pub dry_run: bool,
 }
 
 /// Arguments for the `dfm use` subcommand.
@@ -468,6 +501,39 @@ mod tests {
     }
 
     #[test]
+    fn backup_parses_short_dry_run_flag() {
+        let cli = Cli::try_parse_from(["dfm", "backup", "-n"]).unwrap();
+        match cli.command {
+            Some(Command::Backup(args)) => assert!(args.dry_run),
+            _ => panic!("expected Backup command"),
+        }
+    }
+
+    #[test]
+    fn restore_parses_dry_run_flag() {
+        let cli = Cli::try_parse_from(["dfm", "restore", "--dry-run"]).unwrap();
+        match cli.command {
+            Some(Command::Restore(args)) => assert!(args.dry_run),
+            _ => panic!("expected Restore command"),
+        }
+    }
+
+    #[test]
+    fn sync_parses_dry_run_flag_and_defaults_false() {
+        let cli = Cli::try_parse_from(["dfm", "sync"]).unwrap();
+        match cli.command {
+            Some(Command::Sync(args)) => assert!(!args.dry_run),
+            _ => panic!("expected Sync command"),
+        }
+
+        let cli = Cli::try_parse_from(["dfm", "sync", "-n"]).unwrap();
+        match cli.command {
+            Some(Command::Sync(args)) => assert!(args.dry_run),
+            _ => panic!("expected Sync command"),
+        }
+    }
+
+    #[test]
     fn profile_create_parses_name_and_description() {
         let cli = Cli::try_parse_from([
             "dfm",
@@ -550,7 +616,19 @@ mod tests {
     #[test]
     fn prune_parses_with_no_args() {
         let cli = Cli::try_parse_from(["dfm", "prune"]).unwrap();
-        assert!(matches!(cli.command, Some(Command::Prune)));
+        match cli.command {
+            Some(Command::Prune(args)) => assert!(!args.dry_run),
+            _ => panic!("expected Prune command"),
+        }
+    }
+
+    #[test]
+    fn prune_parses_dry_run_flag() {
+        let cli = Cli::try_parse_from(["dfm", "prune", "--dry-run"]).unwrap();
+        match cli.command {
+            Some(Command::Prune(args)) => assert!(args.dry_run),
+            _ => panic!("expected Prune command"),
+        }
     }
 
     #[test]
