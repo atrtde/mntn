@@ -5,7 +5,8 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
 #[command(
     name = "dotfiles-manager",
     version = env!("CARGO_PKG_VERSION"),
-    about = "A Rust-based command-line tool for dotfiles management with profiles."
+    about = "A Rust-based command-line tool for dotfiles management with profiles.",
+    after_help = "Docs: https://docs.rs/dotfiles-manager\nReport an issue: https://github.com/alexandretrotel/dotfiles-manager/issues"
 )]
 pub struct Cli {
     /// The subcommand to run; `None` when no subcommand was given.
