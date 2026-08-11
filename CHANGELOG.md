@@ -15,6 +15,7 @@ CLI Guidelines (https://clig.dev/) alignment pass.
 - **`$DFM_ROOT`** environment variable overrides the default `~/.dfm` data directory.
 - `dfm restore` and `dfm profile delete` now ask for confirmation before proceeding, matching `dfm prune`'s existing behavior — both are destructive and previously ran unprompted.
 - `--help` and unexpected-error output now point at the docs and GitHub issue tracker.
+- **`dfm completions <shell>`** prints a shell completion script (bash, zsh, fish, elvish, powershell); **`dfm man`** prints the roff man page.
 
 ### Changed
 

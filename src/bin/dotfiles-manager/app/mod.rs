@@ -45,6 +45,8 @@ pub fn run() -> Result<()> {
         Some(Command::Secret { action }) => commands::secret::run(action),
         Some(Command::Prune(args)) => commands::prune::run(&ctx, args),
         Some(Command::Edit(args)) => commands::edit::run(&ctx, args),
+        Some(Command::Completions(args)) => commands::completions::run(args.shell),
+        Some(Command::Man) => commands::completions::man(),
         None => {
             Cli::command().print_help()?;
             println!();

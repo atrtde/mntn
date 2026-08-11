@@ -93,6 +93,14 @@ pub enum Command {
     /// Open one of dfm's registry/config files in an editor.
     #[command(about = "Open one of dfm's registry/config files in an editor")]
     Edit(EditArgs),
+
+    /// Generate a shell completion script and print it to stdout.
+    #[command(about = "Generate a shell completion script and print it to stdout")]
+    Completions(CompletionsArgs),
+
+    /// Generate the roff man page and print it to stdout.
+    #[command(about = "Generate the roff man page and print it to stdout")]
+    Man,
 }
 
 /// Actions available for managing the encryption password in the system keychain.
@@ -220,6 +228,14 @@ pub struct PruneArgs {
         help = "List orphaned profile directories without deleting them"
     )]
     pub dry_run: bool,
+}
+
+/// Arguments for the `dfm completions` subcommand.
+#[derive(Args)]
+pub struct CompletionsArgs {
+    /// Shell to generate a completion script for.
+    #[arg(help = "Shell to generate a completion script for")]
+    pub shell: clap_complete::Shell,
 }
 
 /// Arguments for the `dfm edit` subcommand.
@@ -741,5 +757,31 @@ mod tests {
 
         let cli = Cli::try_parse_from(["dfm", "restore", "--no-input"]).unwrap();
         assert!(cli.no_input);
+    }
+
+    #[test]
+    fn completions_requires_a_shell_argument() {
+        let result = Cli::try_parse_from(["dfm", "completions"]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn completions_parses_known_shells() {
+        for shell in ["bash", "zsh", "fish", "elvish", "powershell"] {
+            let cli = Cli::try_parse_from(["dfm", "completions", shell]).unwrap();
+            assert!(matches!(cli.command, Some(Command::Completions(_))));
+        }
+    }
+
+    #[test]
+    fn completions_rejects_unknown_shell() {
+        let result = Cli::try_parse_from(["dfm", "completions", "not-a-shell"]);
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn man_parses_with_no_args() {
+        let cli = Cli::try_parse_from(["dfm", "man"]).unwrap();
+        assert!(matches!(cli.command, Some(Command::Man)));
     }
 }
