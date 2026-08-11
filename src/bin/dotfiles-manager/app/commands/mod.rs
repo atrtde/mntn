@@ -6,6 +6,7 @@ pub mod doctor;
 pub mod edit;
 pub mod git;
 pub mod link;
+pub mod man;
 pub mod profile;
 pub mod prune;
 pub mod restore;

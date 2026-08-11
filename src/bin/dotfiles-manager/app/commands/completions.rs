@@ -23,10 +23,3 @@ pub fn run(shell: Shell) -> Result<()> {
     generate(shell, &mut cmd, name, &mut io::stdout());
     Ok(())
 }
-
-/// Handle `dfm man`: print the roff man page to stdout.
-pub fn man() -> Result<()> {
-    let cmd = Cli::command();
-    clap_mangen::Man::new(cmd).render(&mut io::stdout())?;
-    Ok(())
-}
