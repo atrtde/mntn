@@ -5,7 +5,7 @@ use dotfiles_manager::profiles::ActiveProfile;
 
 use super::with_suggestions;
 use crate::app::cli::RestoreArgs;
-use crate::app::output::{green, print_section_with_summary};
+use crate::app::output::{green, is_quiet, print_section_with_summary};
 use crate::app::prompt;
 
 /// Handle `dfm restore`.
@@ -15,8 +15,10 @@ pub fn run(ctx: &Dfm, args: RestoreArgs) -> Result<()> {
     let password =
         prompt::optional_password(args.skip_encrypted, args.ask_password, "encrypted restore");
 
-    println!("Restoring...");
-    println!("   Target: {}", profile);
+    if !is_quiet() {
+        println!("Restoring...");
+        println!("   Target: {}", profile);
+    }
 
     let report = dotfiles_manager::restore::run(ctx, &profile, password.as_ref())
         .map_err(with_suggestions)

@@ -5,12 +5,14 @@ use dotfiles_manager::doctor::FixedFile;
 use dotfiles_manager::profiles::{ActiveProfile, ProfileConfig};
 
 use crate::app::cli::DoctorArgs;
-use crate::app::output::{green, print_doctor_report, print_fix_report, red};
+use crate::app::output::{green, is_quiet, print_doctor_report, print_fix_report, red};
 use crate::app::prompt;
 
 /// Handle `dfm doctor`.
 pub fn run(ctx: &Dfm, args: DoctorArgs) -> Result<()> {
-    if let Ok(true) = ProfileConfig::save_default_if_missing(ctx) {
+    if let Ok(true) = ProfileConfig::save_default_if_missing(ctx)
+        && !is_quiet()
+    {
         println!(
             "Created default profile config at {}",
             ctx.profiles_config_path().display()
@@ -47,7 +49,7 @@ fn validate(
     include_disabled: bool,
     json: bool,
 ) -> Result<()> {
-    if !json {
+    if !json && !is_quiet() {
         println!("Validating configuration...");
         println!("   Profile: {}", profile);
     }

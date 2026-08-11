@@ -5,19 +5,30 @@ pub(crate) mod commands;
 pub(crate) mod output;
 pub(crate) mod prompt;
 
-use anstream::println;
+use anstream::{eprintln, println};
 use clap::{CommandFactory, Parser};
 use color_eyre::eyre::Result;
 use dotfiles_manager::Dfm;
 
 use self::cli::{Cli, Command};
+use self::output::Verbosity;
 
 /// Parse CLI args and dispatch to the matching command handler.
 pub fn run() -> Result<()> {
     color_eyre::install()?;
 
     let cli = Cli::parse();
+
+    output::set_verbosity(match (cli.quiet, cli.verbose) {
+        (true, _) => Verbosity::Quiet,
+        (false, true) => Verbosity::Verbose,
+        (false, false) => Verbosity::Normal,
+    });
+
     let ctx = Dfm::new()?;
+    if output::is_verbose() {
+        eprintln!("dfm root: {}", ctx.root().display());
+    }
 
     match cli.command {
         Some(Command::Link(args)) => commands::link::run(&ctx, args),

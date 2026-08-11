@@ -1,7 +1,43 @@
+use std::sync::OnceLock;
+
 use anstream::{eprintln, println};
 use anstyle::{AnsiColor, Style};
 use dotfiles_manager::doctor::{DoctorReport, FixedFile, Severity};
 use dotfiles_manager::{RegistryEntryStatus, SectionReport};
+
+/// Global output verbosity, set once at startup from `--quiet`/`--verbose`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Verbosity {
+    /// Suppress non-essential output.
+    Quiet,
+    /// Default verbosity.
+    Normal,
+    /// Print additional diagnostic output.
+    Verbose,
+}
+
+static VERBOSITY: OnceLock<Verbosity> = OnceLock::new();
+
+/// Set the process-wide verbosity. Only the first call takes effect; safe to
+/// call at most once, from `app::run` right after parsing args.
+pub fn set_verbosity(verbosity: Verbosity) {
+    let _ = VERBOSITY.set(verbosity);
+}
+
+/// The current process-wide verbosity; `Normal` until [`set_verbosity`] runs.
+fn verbosity() -> Verbosity {
+    VERBOSITY.get().copied().unwrap_or(Verbosity::Normal)
+}
+
+/// Whether non-essential status output should be suppressed.
+pub fn is_quiet() -> bool {
+    verbosity() == Verbosity::Quiet
+}
+
+/// Whether additional diagnostic output should be printed.
+pub fn is_verbose() -> bool {
+    verbosity() == Verbosity::Verbose
+}
 
 /// Style used to render success/positive output in green.
 const GREEN: Style = AnsiColor::Green.on_default();
@@ -33,8 +69,12 @@ pub fn red(text: &str) -> String {
 }
 
 /// Print a backup/restore section: warnings first, then one line per entry.
+/// The per-entry detail is suppressed under `--quiet`; warnings and skips
+/// always surface since they're diagnostics, not chatter.
 fn print_section(title: &str, section: &SectionReport) {
-    println!("   {}: {} entries", title, section.outcomes.len());
+    if !is_quiet() {
+        println!("   {}: {} entries", title, section.outcomes.len());
+    }
 
     for warning in &section.warnings {
         eprintln!("{}", yellow(&format!("     {}", warning)));
@@ -43,6 +83,9 @@ fn print_section(title: &str, section: &SectionReport) {
     for outcome in &section.outcomes {
         match &outcome.status {
             RegistryEntryStatus::Done { note } => {
+                if is_quiet() {
+                    continue;
+                }
                 println!("     {} {}", green("✔"), outcome.label);
                 if let Some(note) = note {
                     println!("       {}", note);
@@ -82,7 +125,9 @@ fn print_section_summary(title: &str, section: &SectionReport) {
 pub fn print_doctor_report(report: &DoctorReport) {
     for (name, errors) in report.results() {
         if errors.is_empty() {
-            println!(" {} OK", name);
+            if !is_quiet() {
+                println!(" {} OK", name);
+            }
         } else {
             println!(" {}", name);
             for error in errors {

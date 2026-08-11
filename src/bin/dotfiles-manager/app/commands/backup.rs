@@ -6,7 +6,7 @@ use dotfiles_manager::profiles::ActiveProfile;
 
 use super::with_suggestions;
 use crate::app::cli::BackupArgs;
-use crate::app::output::{green, print_section_with_summary};
+use crate::app::output::{green, is_quiet, print_section_with_summary};
 use crate::app::prompt;
 
 /// Handle `dfm backup`.
@@ -14,14 +14,16 @@ pub fn run(ctx: &Dfm, args: BackupArgs) -> Result<()> {
     let profile = ActiveProfile::resolve(ctx, args.profile.as_deref());
     let password = resolve_backup_password(args.skip_encrypted, args.ask_password)?;
 
-    println!("Backing up...");
-    println!("   Target: {}", profile);
+    if !is_quiet() {
+        println!("Backing up...");
+        println!("   Target: {}", profile);
+    }
 
     let report = dotfiles_manager::backup::run(ctx, &profile, password.as_ref())
         .map_err(with_suggestions)
         .wrap_err("Backup failed")?;
 
-    if report.repo.initialized {
+    if report.repo.initialized && !is_quiet() {
         println!("Initialized git repository in {}", ctx.root().display());
     }
 

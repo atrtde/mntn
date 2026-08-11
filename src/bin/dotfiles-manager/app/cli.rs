@@ -11,6 +11,19 @@ pub struct Cli {
     /// The subcommand to run; `None` when no subcommand was given.
     #[command(subcommand)]
     pub command: Option<Command>,
+
+    /// Suppress non-essential output; only warnings, errors, and final summaries are printed.
+    #[arg(
+        short = 'q',
+        long,
+        global = true,
+        help = "Suppress non-essential output"
+    )]
+    pub quiet: bool,
+
+    /// Print additional diagnostic output (e.g. the resolved dfm root).
+    #[arg(long, global = true, help = "Print additional diagnostic output")]
+    pub verbose: bool,
 }
 
 /// All top-level subcommands supported by `dfm`.
@@ -610,5 +623,24 @@ mod tests {
     fn unknown_subcommand_is_err() {
         let result = Cli::try_parse_from(["dfm", "not-a-command"]);
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn quiet_and_verbose_default_false() {
+        let cli = Cli::try_parse_from(["dfm", "prune"]).unwrap();
+        assert!(!cli.quiet);
+        assert!(!cli.verbose);
+    }
+
+    #[test]
+    fn parses_short_quiet_flag() {
+        let cli = Cli::try_parse_from(["dfm", "-q", "prune"]).unwrap();
+        assert!(cli.quiet);
+    }
+
+    #[test]
+    fn parses_long_verbose_flag_after_subcommand() {
+        let cli = Cli::try_parse_from(["dfm", "prune", "--verbose"]).unwrap();
+        assert!(cli.verbose);
     }
 }
