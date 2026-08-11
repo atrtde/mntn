@@ -22,5 +22,5 @@ fn man_prints_a_roff_page() {
     assert!(output.status.success());
 
     let stdout = String::from_utf8(output.stdout).unwrap();
-    assert!(stdout.contains(".TH dotfiles-manager"));
+    assert!(stdout.contains(".TH dfm"));
 }
