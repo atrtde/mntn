@@ -6,7 +6,7 @@ use clap::{Args, Parser, Subcommand, ValueEnum};
     name = "dotfiles-manager",
     version = env!("CARGO_PKG_VERSION"),
     about = "A Rust-based command-line tool for dotfiles management with profiles.",
-    after_help = "Docs: https://docs.rs/dotfiles-manager\nReport an issue: https://github.com/alexandretrotel/dotfiles-manager/issues"
+    long_about = "A Rust-based command-line tool for dotfiles management with profiles.\n\n\x1b[1m\x1b[4mExamples:\x1b[0m\n  dfm link owner/repo        Clone a dotfiles repo and restore it (onboard a new machine)\n  dfm backup                 Backup the current profile\n  dfm sync -m \"message\"      Stage, commit, and push changes\n  dfm doctor                 Validate registries and check backups for drift\n\nDocs: https://docs.rs/dotfiles-manager\nReport an issue: https://github.com/alexandretrotel/dotfiles-manager/issues"
 )]
 pub struct Cli {
     /// The subcommand to run; `None` when no subcommand was given.
