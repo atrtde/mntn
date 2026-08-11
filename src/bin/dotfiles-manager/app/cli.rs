@@ -24,6 +24,14 @@ pub struct Cli {
     /// Print additional diagnostic output (e.g. the resolved dfm root).
     #[arg(long, global = true, help = "Print additional diagnostic output")]
     pub verbose: bool,
+
+    /// Disable all interactive prompts; confirmations default to "no" and missing passwords fail instead of prompting.
+    #[arg(
+        long,
+        global = true,
+        help = "Disable all interactive prompts, for CI/automation"
+    )]
+    pub no_input: bool,
 }
 
 /// All top-level subcommands supported by `dfm`.
@@ -642,5 +650,14 @@ mod tests {
     fn parses_long_verbose_flag_after_subcommand() {
         let cli = Cli::try_parse_from(["dfm", "prune", "--verbose"]).unwrap();
         assert!(cli.verbose);
+    }
+
+    #[test]
+    fn no_input_defaults_false_and_parses_after_subcommand() {
+        let cli = Cli::try_parse_from(["dfm", "restore"]).unwrap();
+        assert!(!cli.no_input);
+
+        let cli = Cli::try_parse_from(["dfm", "restore", "--no-input"]).unwrap();
+        assert!(cli.no_input);
     }
 }

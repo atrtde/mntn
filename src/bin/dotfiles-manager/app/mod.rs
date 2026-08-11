@@ -24,6 +24,7 @@ pub fn run() -> Result<()> {
         (false, true) => Verbosity::Verbose,
         (false, false) => Verbosity::Normal,
     });
+    prompt::set_no_input(cli.no_input);
 
     let ctx = Dfm::new()?;
     if output::is_verbose() {
