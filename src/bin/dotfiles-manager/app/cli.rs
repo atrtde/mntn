@@ -110,12 +110,7 @@ pub enum SecretActions {
 #[derive(Args)]
 pub struct BackupArgs {
     /// Target a specific profile for backup.
-    #[arg(
-        long,
-        short = 'p',
-        visible_short_alias = 'n',
-        help = "Target a specific profile for backup"
-    )]
+    #[arg(long, short = 'p', help = "Target a specific profile for backup")]
     pub profile: Option<String>,
     /// Skip encrypted configs backup (will not prompt for password).
     #[arg(
@@ -454,14 +449,22 @@ mod tests {
     }
 
     #[test]
-    fn backup_parses_profile_alias() {
-        let cli = Cli::try_parse_from(["dfm", "backup", "-n", "personal"]).unwrap();
+    fn backup_parses_short_profile_flag() {
+        let cli = Cli::try_parse_from(["dfm", "backup", "-p", "personal"]).unwrap();
         match cli.command {
             Some(Command::Backup(args)) => {
                 assert_eq!(args.profile, Some("personal".to_string()));
             }
             _ => panic!("expected Backup command"),
         }
+    }
+
+    #[test]
+    fn backup_rejects_n_as_profile_shorthand() {
+        // `-n` is reserved for `--dry-run` per clig.dev convention, not an
+        // alias for `--profile`.
+        let result = Cli::try_parse_from(["dfm", "backup", "-n", "personal"]);
+        assert!(result.is_err());
     }
 
     #[test]
