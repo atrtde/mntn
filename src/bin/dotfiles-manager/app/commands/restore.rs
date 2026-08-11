@@ -17,6 +17,15 @@ pub fn run(ctx: &Dfm, args: RestoreArgs) -> Result<()> {
         return dry_run(ctx, &profile, args.skip_encrypted);
     }
 
+    let confirmed = prompt::confirm(&format!(
+        "Restore will overwrite existing files at their original paths for '{}'. Continue?",
+        profile
+    ))?;
+    if !confirmed {
+        println!("Aborted, nothing was restored");
+        return Ok(());
+    }
+
     let password =
         prompt::optional_password(args.skip_encrypted, args.ask_password, "encrypted restore");
 

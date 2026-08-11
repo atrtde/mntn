@@ -6,6 +6,7 @@ use serde::Serialize;
 
 use super::with_suggestions;
 use crate::app::cli::{ProfileActions, ProfileArgs};
+use crate::app::prompt;
 
 /// A single profile, shaped for `--json` output.
 #[derive(Serialize)]
@@ -44,6 +45,12 @@ pub fn run(ctx: &Dfm, args: ProfileArgs) -> Result<()> {
             Ok(())
         }
         Some(ProfileActions::Delete { name }) => {
+            let confirmed = prompt::confirm(&format!("Delete profile '{}'?", name))?;
+            if !confirmed {
+                println!("Aborted, nothing was deleted");
+                return Ok(());
+            }
+
             let deleted = profiles::delete_profile(ctx, &name).map_err(with_suggestions)?;
             if let Some(dir) = deleted.retained_directory {
                 println!("Profile directory exists at {}", dir.display());
