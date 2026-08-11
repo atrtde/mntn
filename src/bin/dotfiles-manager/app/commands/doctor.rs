@@ -34,6 +34,7 @@ pub fn run(ctx: &Dfm, args: DoctorArgs) -> Result<()> {
         args.skip_encrypted,
         args.ask_password,
         args.include_disabled,
+        args.json,
     )
 }
 
@@ -44,21 +45,39 @@ fn validate(
     skip_encrypted: bool,
     ask_password: bool,
     include_disabled: bool,
+    json: bool,
 ) -> Result<()> {
-    println!("Validating configuration...");
-    println!("   Profile: {}", profile);
+    if !json {
+        println!("Validating configuration...");
+        println!("   Profile: {}", profile);
+    }
 
     let password =
         prompt::optional_password(skip_encrypted, ask_password, "encrypted file validation");
 
     let report =
         dotfiles_manager::doctor::validate(ctx, profile, password.as_ref(), include_disabled);
-    println!();
-    print_doctor_report(&report);
-    println!();
 
     let error_count = report.error_count();
     let warning_count = report.warning_count();
+
+    if json {
+        let rendered = serde_json::to_string_pretty(&report)
+            .map_err(|e| eyre!("Failed to serialize doctor report: {e}"))?;
+        println!("{}", rendered);
+        if error_count > 0 {
+            return Err(eyre!(
+                "Validation failed: {} error(s), {} warning(s)",
+                error_count,
+                warning_count
+            ));
+        }
+        return Ok(());
+    }
+
+    println!();
+    print_doctor_report(&report);
+    println!();
 
     if error_count > 0 {
         return Err(eyre!(

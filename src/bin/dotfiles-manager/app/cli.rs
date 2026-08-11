@@ -174,6 +174,9 @@ pub struct DoctorArgs {
         help = "Also check disabled registry entries in the backup consistency check"
     )]
     pub include_disabled: bool,
+    /// Output findings as JSON instead of human-readable text.
+    #[arg(long, help = "Output findings as JSON instead of human-readable text")]
+    pub json: bool,
 }
 
 /// Arguments for the `dfm edit` subcommand.
@@ -264,6 +267,13 @@ pub struct ProfileArgs {
     /// Which profile-management action to perform; `None` lists nothing and falls back to default behavior.
     #[command(subcommand)]
     pub action: Option<ProfileActions>,
+    /// Output the profile list/status as JSON instead of human-readable text.
+    #[arg(
+        long,
+        global = true,
+        help = "Output the profile list/status as JSON instead of human-readable text"
+    )]
+    pub json: bool,
 }
 
 /// Actions available for managing profiles.
@@ -468,6 +478,33 @@ mod tests {
         match cli.command {
             Some(Command::Profile(args)) => assert!(args.action.is_none()),
             _ => panic!("expected Profile command"),
+        }
+    }
+
+    #[test]
+    fn profile_json_flag_defaults_false() {
+        let cli = Cli::try_parse_from(["dfm", "profile"]).unwrap();
+        match cli.command {
+            Some(Command::Profile(args)) => assert!(!args.json),
+            _ => panic!("expected Profile command"),
+        }
+    }
+
+    #[test]
+    fn profile_parses_json_flag() {
+        let cli = Cli::try_parse_from(["dfm", "profile", "--json"]).unwrap();
+        match cli.command {
+            Some(Command::Profile(args)) => assert!(args.json),
+            _ => panic!("expected Profile command"),
+        }
+    }
+
+    #[test]
+    fn doctor_parses_json_flag() {
+        let cli = Cli::try_parse_from(["dfm", "doctor", "--json"]).unwrap();
+        match cli.command {
+            Some(Command::Doctor(args)) => assert!(args.json),
+            _ => panic!("expected Doctor command"),
         }
     }
 

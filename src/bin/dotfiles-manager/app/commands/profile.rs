@@ -1,15 +1,37 @@
 use anstream::println;
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{Result, eyre};
 use dotfiles_manager::Dfm;
 use dotfiles_manager::profiles::{self, ProfileConfig};
+use serde::Serialize;
 
 use super::with_suggestions;
 use crate::app::cli::{ProfileActions, ProfileArgs};
 
+/// A single profile, shaped for `--json` output.
+#[derive(Serialize)]
+struct ProfileJson {
+    name: String,
+    description: Option<String>,
+    active: bool,
+}
+
+/// Full `dfm profile` status, shaped for `--json` output.
+#[derive(Serialize)]
+struct StatusJson {
+    active_profile: Option<String>,
+    profiles: Vec<ProfileJson>,
+}
+
 /// Handle `dfm profile` (list/create/delete).
 pub fn run(ctx: &Dfm, args: ProfileArgs) -> Result<()> {
     match args.action {
-        Some(ProfileActions::List) => list(ctx),
+        Some(ProfileActions::List) => {
+            if args.json {
+                print_json(ctx)
+            } else {
+                list(ctx)
+            }
+        }
         Some(ProfileActions::Create { name, description }) => {
             let created =
                 profiles::create_profile(ctx, &name, description).map_err(with_suggestions)?;
@@ -32,6 +54,9 @@ pub fn run(ctx: &Dfm, args: ProfileArgs) -> Result<()> {
             Ok(())
         }
         None => {
+            if args.json {
+                return print_json(ctx);
+            }
             match profiles::get_active_profile_name(ctx) {
                 Some(name) => println!("Active profile: {}", name),
                 None => println!("No active profile (using common only)"),
@@ -43,6 +68,34 @@ pub fn run(ctx: &Dfm, args: ProfileArgs) -> Result<()> {
             Ok(())
         }
     }
+}
+
+/// Print the active profile and full profile list as JSON.
+fn print_json(ctx: &Dfm) -> Result<()> {
+    let config = ProfileConfig::load_or_default(ctx);
+    let current = profiles::get_active_profile_name(ctx);
+
+    let profiles_json = config
+        .list_profiles()
+        .iter()
+        .map(|name| ProfileJson {
+            name: name.to_string(),
+            description: config
+                .get_profile(name)
+                .and_then(|d| d.description.clone()),
+            active: current.as_deref() == Some(name.as_str()),
+        })
+        .collect();
+
+    let status = StatusJson {
+        active_profile: current,
+        profiles: profiles_json,
+    };
+
+    let rendered = serde_json::to_string_pretty(&status)
+        .map_err(|e| eyre!("Failed to serialize profile status: {e}"))?;
+    println!("{}", rendered);
+    Ok(())
 }
 
 /// Print all known profiles, marking the active one.
