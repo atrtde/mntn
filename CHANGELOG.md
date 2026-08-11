@@ -2,9 +2,23 @@
 
 All notable changes to this project are documented in this file.
 
-## Unreleased
+## v1.2.0
 
-Tracking issue for CLI Guidelines (https://clig.dev/) alignment work. See PR body for the task breakdown.
+CLI Guidelines (https://clig.dev/) alignment pass.
+
+### Added
+
+- **`--json`** on `dfm doctor` and `dfm profile` prints structured output instead of colored text, for scripting.
+- **`-q`/`--quiet`** and **`--verbose`** global flags. `--quiet` drops per-entry/status chatter while keeping warnings, errors, and final summaries; `--verbose` prints the resolved dfm root.
+- **`--no-input`** global flag disables all interactive prompts for CI/automation: confirmations default to "no" instead of blocking on stdin, and a required password that isn't in the keychain fails with a clear message instead of hanging.
+- **`--dry-run`/`-n`** on `dfm backup`, `dfm restore`, `dfm sync`, and `dfm prune` previews what would happen without writing anything, staging/committing/pushing, or deleting.
+- **`$DFM_ROOT`** environment variable overrides the default `~/.dfm` data directory.
+- `dfm restore` and `dfm profile delete` now ask for confirmation before proceeding, matching `dfm prune`'s existing behavior — both are destructive and previously ran unprompted.
+- `--help` and unexpected-error output now point at the docs and GitHub issue tracker.
+
+### Changed
+
+- **Breaking (CLI only):** `dfm backup --profile`'s `-n` short alias was removed; `-n` is now reserved for `--dry-run` per clig.dev convention. Use `-p`/`--profile` instead.
 
 ## v1.1.3
 
