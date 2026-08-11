@@ -61,6 +61,10 @@ dfm use work
 
 **Encrypted configs:** run `dfm secret set` once you know your passphrase to persist it. Pass `--ask-password` to `backup`, `restore`, or `doctor` to type the passphrase for that run instead (bypassing the keychain) — encrypted files are still processed either way.
 
+## Security
+
+The encryption passphrase is never accepted as a command-line flag or an environment variable — both leak into shell history and process listings. `dfm` only ever gets it two ways: an interactive prompt (hidden, no echo), or the OS keychain via `dfm secret set`. This also means `dfm` can't be driven end-to-end non-interactively unless the passphrase is stored in the keychain first (or `--skip-encrypted` is passed); see `--no-input` below for how it fails when neither applies.
+
 ## Directory Layout
 
 ```text
