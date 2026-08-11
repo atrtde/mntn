@@ -2,6 +2,10 @@
 
 All notable changes to this project are documented in this file.
 
+## Unreleased
+
+Tracking issue for CLI Guidelines (https://clig.dev/) alignment work. See PR body for the task breakdown.
+
 ## v1.1.3
 
 ### Fixed
